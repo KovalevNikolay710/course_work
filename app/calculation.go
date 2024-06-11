@@ -59,18 +59,27 @@ type edge struct {
 
 func generateRandomNetwork(points []string, distribution [][]string, randomNumber float64) [][]string {
 	matrixSize := len(points)
-	randomNetwork := make([][]string, matrixSize)
-	for i := range randomNetwork {
-		randomNetwork[i] = make([]string, matrixSize)
-		for j := range randomNetwork[i] {
-			randomNetwork[i][j] = "0" // Инициализация всех значений нулями
+	randomNetwork := make([][]string, matrixSize+1)
+
+	// Инициализация первой строки заголовков
+	randomNetwork[0] = make([]string, matrixSize+1)
+	randomNetwork[0][0] = ""
+	for i := 0; i < matrixSize; i++ {
+		randomNetwork[0][i+1] = points[i]
+	}
+
+	for i := 0; i < matrixSize; i++ {
+		randomNetwork[i+1] = make([]string, matrixSize+1)
+		randomNetwork[i+1][0] = points[i] // Заголовок строки
+		for j := 0; j < matrixSize; j++ {
+			randomNetwork[i+1][j+1] = "0" // Инициализация всех значений нулями
 		}
 	}
 
 	for i := 0; i < matrixSize; i++ {
 		for j := 0; j < matrixSize; j++ {
 			if i == j {
-				randomNetwork[i][j] = "0"
+				randomNetwork[i+1][j+1] = "0"
 				continue
 			}
 
@@ -91,13 +100,13 @@ func generateRandomNetwork(points []string, distribution [][]string, randomNumbe
 				E, _ := strconv.ParseFloat(dist[2], 64)
 				Omega, _ := strconv.ParseFloat(dist[3], 64)
 				z := randomNumber
-				randomNetwork[i][j] = fmt.Sprintf("%.2f", E+Omega*z)
+				randomNetwork[i+1][j+1] = fmt.Sprintf("%.2f", E+Omega*z)
 			} else {
 				a, _ := strconv.ParseFloat(dist[5], 64)
 				b, _ := strconv.ParseFloat(dist[6], 64)
-				randomNetwork[i][j] = fmt.Sprintf("%.2f", a+(b-a)*randomNumber)
+				randomNetwork[i+1][j+1] = fmt.Sprintf("%.2f", a+(b-a)*randomNumber)
 			}
-			randomNetwork[j][i] = randomNetwork[i][j]
+			randomNetwork[j+1][i+1] = randomNetwork[i+1][j+1]
 		}
 	}
 
@@ -105,18 +114,28 @@ func generateRandomNetwork(points []string, distribution [][]string, randomNumbe
 }
 
 func dijkstraAll(graph [][]string) [][]string {
-	matrixSize := len(graph)
-	distanceMatrix := make([][]string, matrixSize)
+	matrixSize := len(graph) - 1
+	distanceMatrix := make([][]string, matrixSize+1)
+
+	// Инициализация первой строки заголовков
+	distanceMatrix[0] = make([]string, matrixSize+1)
+	distanceMatrix[0][0] = ""
 	for i := 0; i < matrixSize; i++ {
-		distanceMatrix[i] = dijkstra(graph, i)
+		distanceMatrix[0][i+1] = graph[0][i+1]
+	}
+
+	// Вычисление кратчайших путей для каждой вершины
+	for i := 0; i < matrixSize; i++ {
+		distanceMatrix[i+1] = dijkstra(graph, i+1)
+		distanceMatrix[i+1][0] = graph[i+1][0] // Заголовок строки
 	}
 	return distanceMatrix
 }
 
 func dijkstra(graph [][]string, start int) []string {
-	matrixSize := len(graph)
-	distances := make([]float64, matrixSize)
-	visited := make([]bool, matrixSize)
+	matrixSize := len(graph) - 1
+	distances := make([]float64, matrixSize+1)
+	visited := make([]bool, matrixSize+1)
 
 	for i := range distances {
 		distances[i] = math.Inf(1)
@@ -126,7 +145,7 @@ func dijkstra(graph [][]string, start int) []string {
 	for i := 0; i < matrixSize; i++ {
 		minDist := math.Inf(1)
 		minIndex := -1
-		for j := 0; j < matrixSize; j++ {
+		for j := 1; j <= matrixSize; j++ {
 			if !visited[j] && distances[j] < minDist {
 				minDist = distances[j]
 				minIndex = j
@@ -139,7 +158,7 @@ func dijkstra(graph [][]string, start int) []string {
 
 		visited[minIndex] = true
 
-		for j := 0; j < matrixSize; j++ {
+		for j := 1; j <= matrixSize; j++ {
 			if !visited[j] && graph[minIndex][j] != "0" {
 				edgeDist, _ := strconv.ParseFloat(graph[minIndex][j], 64)
 				newDist := distances[minIndex] + edgeDist
@@ -150,8 +169,11 @@ func dijkstra(graph [][]string, start int) []string {
 		}
 	}
 
-	result := make([]string, matrixSize)
+	result := make([]string, matrixSize+1)
 	for i, dist := range distances {
+		if i == 0 {
+			continue
+		}
 		if dist == math.Inf(1) {
 			result[i] = "∞"
 		} else {
@@ -330,31 +352,29 @@ func calculateDistribution(results1, results2 [][]string, edges []string) [][]st
 	distribution = append(distribution, header)
 
 	for i, edge := range edges {
-		if i+1 < len(results1) && i+1 < len(results2) && len(results1[i+1]) > 9 && len(results2[i+1]) > 9 {
-			pN, _ := strconv.ParseFloat(results1[i+1][9], 64)
-			pR, _ := strconv.ParseFloat(results2[i+1][9], 64)
-			if pN > pR {
-				randValue := math.Sqrt(-2*math.Log(rand.Float64())) * math.Cos(2*math.Pi*rand.Float64())
-				distribution = append(distribution, []string{
-					edge,
-					"нормальное",
-					results1[i+1][0],
-					results1[i+1][1],
-					fmt.Sprintf("%f", randValue),
-					"0",
-					"0",
-				})
-			} else {
-				distribution = append(distribution, []string{
-					edge,
-					"равномерное",
-					"0",
-					"0",
-					"0",
-					results2[i+1][2],
-					results2[i+1][3],
-				})
-			}
+		pN, _ := strconv.ParseFloat(results1[i+1][9], 64)
+		pR, _ := strconv.ParseFloat(results2[i+1][9], 64)
+		if pN > pR {
+			randValue := math.Sqrt(-2*math.Log(rand.Float64())) * math.Cos(2*math.Pi*rand.Float64())
+			distribution = append(distribution, []string{
+				edge,
+				"нормальное",
+				results1[i+1][1],
+				results1[i+1][2],
+				fmt.Sprintf("%f", randValue),
+				"0",
+				"0",
+			})
+		} else {
+			distribution = append(distribution, []string{
+				edge,
+				"равномерное",
+				"0",
+				"0",
+				"0",
+				results2[i+1][3],
+				results2[i+1][4],
+			})
 		}
 	}
 
@@ -381,6 +401,39 @@ func calculateModelingResults(internalDistances, externalDistances []float64) ([
 	return results, minIndex
 }
 
+func calculateExternalDistances(distanceMatrix [][]string) []float64 {
+	matrixSize := len(distanceMatrix) - 1 // Учитываем заголовки
+	externalDistances := make([]float64, matrixSize)
+	for j := 1; j <= matrixSize; j++ {
+		maxDist := 0.0
+		for i := 1; i <= matrixSize; i++ {
+			dist, _ := strconv.ParseFloat(distanceMatrix[i][j], 64)
+			if dist > maxDist {
+				maxDist = dist
+			}
+		}
+		externalDistances[j-1] = maxDist
+	}
+	return externalDistances
+}
+
+func calculateInternalDistances(distanceMatrix [][]string) []float64 {
+	matrixSize := len(distanceMatrix) - 1 // Учитываем заголовки
+	internalDistances := make([]float64, matrixSize)
+	for i := 1; i <= matrixSize; i++ {
+		maxDist := 0.0
+		for j := 1; j <= matrixSize; j++ {
+			dist, _ := strconv.ParseFloat(distanceMatrix[i][j], 64)
+			if dist > maxDist {
+				maxDist = dist
+			}
+		}
+		internalDistances[i-1] = maxDist
+	}
+	return internalDistances
+}
+
+/*
 func calculateInternalDistances(distanceMatrix [][]string) []float64 {
 	matrixSize := len(distanceMatrix)
 	internalDistances := make([]float64, matrixSize)
@@ -412,3 +465,4 @@ func calculateExternalDistances(distanceMatrix [][]string) []float64 {
 	}
 	return externalDistances
 }
+*/

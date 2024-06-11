@@ -4,10 +4,13 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -82,6 +85,18 @@ func main() {
 	appendTableToHTML("Результаты 1", results1)
 	appendTableToHTML("Результаты 2", results2)
 	appendTableToHTML("Распределение", distribution)
+	// Генерация случайного числа
+	rand.Seed(time.Now().UnixNano())
+	randomNumber := rand.Float64()
+	appendRandomNumberToHTML(randomNumber)
+	randomNetwork := generateRandomNetwork(points, distribution, randomNumber)
+	appendTableToHTML("Случайная сеть", randomNetwork)
+	distMatrix := dijkstraAll(randomNetwork)
+	appendTableToHTML("Матрица расстояний", distMatrix)
+	extRad, intRad := calculateExternalDistances(distMatrix), calculateInternalDistances(distMatrix)
+	radMatrix := radMatrix(extRad, intRad, points)
+	appendTableToHTML("Матрица радиусов", radMatrix)
+
 }
 
 // Функция для создания общего HTML файла
@@ -192,6 +207,43 @@ func extractEdgesAndPoints(data [][]string) ([]string, []string) {
 	for point := range pointsSet {
 		points = append(points, point)
 	}
-
+	sort.Strings(points)
 	return edges, points
+}
+
+func appendRandomNumberToHTML(randomNumber float64) {
+	htmlFile, err := os.OpenFile("results.html", os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Unable to open HTML file: %v", err)
+	}
+	defer htmlFile.Close()
+
+	htmlContent := fmt.Sprintf(`
+	<h2>Случайное число</h2>
+	<p>%f</p>
+`, randomNumber)
+
+	_, err = htmlFile.WriteString(htmlContent)
+	if err != nil {
+		log.Fatalf("Unable to write to HTML file: %v", err)
+	}
+}
+
+func radMatrix(ext, iter []float64, points []string) [][]string {
+	matrixSize := len(points)
+	radMatrix := make([][]string, matrixSize+1)
+
+	// Инициализация первой строки заголовков
+	radMatrix[0] = []string{"Point", "External Radius", "Internal Radius"}
+
+	// Заполнение матрицы данными
+	for i := 0; i < matrixSize; i++ {
+		radMatrix[i+1] = []string{
+			points[i],
+			fmt.Sprintf("%.2f", ext[i]),
+			fmt.Sprintf("%.2f", iter[i]),
+		}
+	}
+
+	return radMatrix
 }
