@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -73,10 +74,6 @@ func main() {
 	// Получение списка граней и точек
 	edges, points := extractEdgesAndPoints(data)
 
-	// Вывод результатов в консоль
-	fmt.Println("Грани:", edges)
-	fmt.Println("Точки:", points)
-
 	// Вычисление результатов
 	results1, results2 := calculateResults(data)
 	distribution := calculateDistribution(results1, results2, edges)
@@ -94,9 +91,8 @@ func main() {
 	distMatrix := dijkstraAll(randomNetwork)
 	appendTableToHTML("Матрица расстояний", distMatrix)
 	extRad, intRad := calculateExternalDistances(distMatrix), calculateInternalDistances(distMatrix)
-	radMatrix := radMatrix(extRad, intRad, points)
-	appendTableToHTML("Матрица радиусов", radMatrix)
-
+	extIntTable := calculateAndHighlightModelingResults(intRad, extRad, points)
+	appendTableToHTML("Результаты модуляции", extIntTable)
 }
 
 // Функция для создания общего HTML файла
@@ -246,4 +242,68 @@ func radMatrix(ext, iter []float64, points []string) [][]string {
 	}
 
 	return radMatrix
+}
+
+func calculateModelingResults(internalDistances, externalDistances []float64) [][]string {
+	// Инициализация первой строки заголовков
+	results := [][]string{
+		{"Название", "Результат"},
+	}
+
+	// Нахождение минимальных внешних и внутренних радиусов
+	minInternalRadius := math.MaxFloat64
+	minExternalRadius := math.MaxFloat64
+
+	for i := range internalDistances {
+		if internalDistances[i] < minInternalRadius {
+			minInternalRadius = internalDistances[i]
+		}
+		if externalDistances[i] < minExternalRadius {
+			minExternalRadius = externalDistances[i]
+		}
+	}
+
+	// Нахождение суммы минимальных радиусов
+	sumRadius := minInternalRadius + minExternalRadius
+
+	// Формирование таблицы результатов
+	results = append(results, []string{"Минимальный внешний радиус", fmt.Sprintf("%.2f", minExternalRadius)})
+	results = append(results, []string{"Минимальный внутренний радиус", fmt.Sprintf("%.2f", minInternalRadius)})
+	results = append(results, []string{"Сумма радиусов (внешний + внутренний)", fmt.Sprintf("%.2f", sumRadius)})
+
+	return results
+}
+
+func calculateAndHighlightModelingResults(internalDistances, externalDistances []float64, points []string) [][]string {
+	matrixSize := len(points)
+	results := make([][]string, matrixSize+1)
+
+	// Инициализация первой строки заголовков
+	results[0] = []string{"Вершина", "Внешний радиус", "Внутренний радиус", "Сумма радиусов"}
+
+	// Переменные для нахождения минимальной суммы радиусов
+	minSumRadius := math.MaxFloat64
+	minIndex := -1
+
+	// Заполнение таблицы данными
+	for i := 0; i < matrixSize; i++ {
+		sumRadius := internalDistances[i] + externalDistances[i]
+		results[i+1] = []string{
+			points[i],
+			fmt.Sprintf("%.2f", externalDistances[i]),
+			fmt.Sprintf("%.2f", internalDistances[i]),
+			fmt.Sprintf("%.2f", sumRadius),
+		}
+		if sumRadius < minSumRadius {
+			minSumRadius = sumRadius
+			minIndex = i + 1 // +1 для учета заголовков
+		}
+	}
+
+	// Подсветка строки с минимальной суммой радиусов
+	for i := range results[minIndex] {
+		results[minIndex][i] = fmt.Sprintf("<b>%s</b>", results[minIndex][i])
+	}
+
+	return results
 }

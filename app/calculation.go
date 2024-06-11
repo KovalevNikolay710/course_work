@@ -381,26 +381,6 @@ func calculateDistribution(results1, results2 [][]string, edges []string) [][]st
 	return distribution
 }
 
-func calculateModelingResults(internalDistances, externalDistances []float64) ([][]string, int) {
-	results := [][]string{}
-	minRadius := math.MaxFloat64
-	minIndex := -1
-
-	for i := range internalDistances {
-		sumRadius := internalDistances[i] + externalDistances[i]
-		results = append(results, []string{
-			fmt.Sprintf("%d", i+1),
-			fmt.Sprintf("%.2f", sumRadius),
-		})
-		if sumRadius < minRadius {
-			minRadius = sumRadius
-			minIndex = i
-		}
-	}
-
-	return results, minIndex
-}
-
 func calculateExternalDistances(distanceMatrix [][]string) []float64 {
 	matrixSize := len(distanceMatrix) - 1 // Учитываем заголовки
 	externalDistances := make([]float64, matrixSize)
