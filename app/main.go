@@ -26,60 +26,71 @@ var peaks []string
 func main() {
 	createHTMLFile("Результаты")
 
-	// Ожидание выбора пользователя
-	var choice string
-	fmt.Println("Введите '1' для загрузки таблицы из файловой системы, '2' для генерации новой таблицы или '3' для выбора файла из директории 'data':")
-	fmt.Scan(&choice)
-
-	var data [][]string
-	var err error
-
-	switch choice {
-	case "1":
-		_, err = os.Stat("./data/new_data.csv")
-		if os.IsNotExist(err) {
-			log.Fatalf("Файл не существует: %v", "./data/new_data.csv")
-		}
-		data, err = loadDataFromFile("./data/new_data.csv")
+	// Проверка наличия папки и создание её, если нет
+	path := "./data"
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := os.Mkdir(path, os.ModePerm)
 		if err != nil {
-			log.Fatalf("Ошибка при загрузке данных из файла: %v", err)
+			log.Fatalf("Ошибка при создании директории: %v", err)
 		}
-	case "2":
+		fmt.Println("Директория 'data' создана. Начинаем процесс создания новых данных.")
 		generateNewTable()
-		data, err = loadDataFromFile("./data/new_data.csv")
-		if err != nil {
-			log.Fatalf("Ошибка при загрузке данных из файла: %v", err)
-		}
-	case "3":
-		files, err := listFilesInDirectory("./data")
+		processData("./data/new_data.csv")
+	} else {
+		files, err := listFilesInDirectory(path)
 		if err != nil {
 			log.Fatalf("Ошибка при получении списка файлов: %v", err)
 		}
-		fmt.Println("Доступные файлы:")
-		for i, file := range files {
-			fmt.Printf("%d: %s\n", i+1, file)
-		}
-		var fileChoice int
-		fmt.Println("Введите номер файла, который вы хотите загрузить:")
-		fmt.Scan(&fileChoice)
-		if fileChoice < 1 || fileChoice > len(files) {
-			log.Fatalf("Некорректный выбор файла")
-		}
-		data, err = loadDataFromFile(filepath.Join("./data", files[fileChoice-1]))
-		if err != nil {
-			log.Fatalf("Ошибка при загрузке данных из файла: %v", err)
-		}
-	default:
-		log.Fatalf("Некорректный выбор: %s", choice)
-	}
 
+		if len(files) == 0 {
+			fmt.Println("Директория 'data' пуста. Начинаем процесс создания новых данных.")
+			generateNewTable()
+			processData("./data/new_data.csv")
+		} else {
+			var choice string
+			fmt.Println("Директория 'data' не пуста.")
+			fmt.Println("Введите '1' для выбора файла или '2' для создания новой таблицы:")
+			fmt.Scan(&choice)
+
+			if choice == "1" {
+				fmt.Println("Доступные файлы:")
+				for i, file := range files {
+					fmt.Printf("%d: %s\n", i+1, file)
+				}
+				var fileChoice int
+				fmt.Println("Введите номер файла, который вы хотите загрузить:")
+				fmt.Scan(&fileChoice)
+				if fileChoice < 1 || fileChoice > len(files) {
+					log.Fatalf("Некорректный выбор файла")
+				}
+				selectedFile := filepath.Join(path, files[fileChoice-1])
+				_, err := loadDataFromFile(selectedFile)
+				if err != nil {
+					log.Fatalf("Ошибка при загрузке данных из файла: %v", err)
+				}
+				processData(selectedFile)
+			} else if choice == "2" {
+				generateNewTable()
+				processData("./data/new_data.csv")
+			} else {
+				log.Fatalf("Некорректный выбор: %s", choice)
+			}
+		}
+	}
+}
+
+func processData(filePath string) {
 	// Вывод таблицы в браузер
+	data, err := loadDataFromFile(filePath)
+	if err != nil {
+		log.Fatalf("Ошибка при загрузке данных из файла: %v", err)
+	}
 	appendTableToHTML("Исходная таблица данных", data)
 
 	// Повторное чтение данных из файла
-	dataFile, err := os.Open("./data/new_data.csv")
+	dataFile, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("Unable to read input file %s: %v", "./data/new_data.csv", err)
+		log.Fatalf("Unable to read input file %s: %v", filePath, err)
 	}
 	defer dataFile.Close()
 
