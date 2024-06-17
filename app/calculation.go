@@ -354,7 +354,7 @@ func calculateDistribution(results1, results2 [][]string, edges []string) [][]st
 	for i, edge := range edges {
 		pN, _ := strconv.ParseFloat(results1[i+1][9], 64)
 		pR, _ := strconv.ParseFloat(results2[i+1][9], 64)
-		if pN > pR {
+		if !(pN > pR) {
 			randValue := math.Sqrt(-2*math.Log(rand.Float64())) * math.Cos(2*math.Pi*rand.Float64())
 			distribution = append(distribution, []string{
 				edge,
@@ -412,37 +412,3 @@ func calculateInternalDistances(distanceMatrix [][]string) []float64 {
 	}
 	return internalDistances
 }
-
-/*
-func calculateInternalDistances(distanceMatrix [][]string) []float64 {
-	matrixSize := len(distanceMatrix)
-	internalDistances := make([]float64, matrixSize)
-	for i := 0; i < matrixSize; i++ {
-		maxDist := 0.0
-		for j := 0; j < matrixSize; j++ {
-			dist, _ := strconv.ParseFloat(distanceMatrix[i][j], 64)
-			if dist > maxDist {
-				maxDist = dist
-			}
-		}
-		internalDistances[i] = maxDist
-	}
-	return internalDistances
-}
-
-func calculateExternalDistances(distanceMatrix [][]string) []float64 {
-	matrixSize := len(distanceMatrix)
-	externalDistances := make([]float64, matrixSize)
-	for j := 0; j < matrixSize; j++ {
-		maxDist := 0.0
-		for i := 0; i < matrixSize; i++ {
-			dist, _ := strconv.ParseFloat(distanceMatrix[i][j], 64)
-			if dist > maxDist {
-				maxDist = dist
-			}
-		}
-		externalDistances[j] = maxDist
-	}
-	return externalDistances
-}
-*/

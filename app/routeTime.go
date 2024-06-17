@@ -43,12 +43,11 @@ var dates = generateNewDates()
 
 var sem = make(chan struct{}, 5) // Семафор с лимитом на 5 одновременных запросов
 
-// GetRouteDurationForEachEdge
-func smain() {
+func generateNewTable() {
 
 	matrix := make([][]string, len(edges))
 	for i := range matrix {
-		matrix[i] = make([]string, 31)
+		matrix[i] = make([]string, len(times)*len(dates)+1)
 		matrix[i][0] = edges[i]
 	}
 
