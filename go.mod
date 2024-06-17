@@ -1,8 +1,13 @@
 module CourseWork
 
-go 1.19
+go 1.21
 
-require gonum.org/v1/plot v0.14.0
+toolchain go1.21.3
+
+require (
+	gonum.org/v1/gonum v0.15.0
+	gonum.org/v1/plot v0.14.0
+)
 
 require (
 	git.sr.ht/~sbinet/gg v0.5.0 // indirect
@@ -13,9 +18,7 @@ require (
 	github.com/go-pdf/fpdf v0.9.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/wcharczuk/go-chart/v2 v2.1.1 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/image v0.17.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	gonum.org/v1/gonum v0.15.0 // indirect
 )

@@ -117,11 +117,12 @@ func processData(filePath string) {
 
 	// Получение списка граней и точек
 	edges, peaks = extractEdgesAndPoints(data)
+	log.Printf("Edges: %v, Peaks: %v", edges, peaks)
 
 	// Вычисление результатов
 	results1, results2 := calculateResults(data)
 	distribution := calculateDistribution(results1, results2, edges)
-
+	appendImageToHTML("Граф", "graph.png")
 	// Вывод результатов в браузер
 	appendTableToHTML("Результаты 1", results1)
 	appendTableToHTML("Результаты 2", results2)
@@ -144,6 +145,15 @@ func processData(filePath string) {
 	histogramFilename := "histogram.png"
 	createHistogram(extIntTable, "Гистограмма суммы радиусов", histogramFilename)
 	appendImageToHTML("Гистограмма суммы радиусов", histogramFilename)
+
+	log.Printf("Generating full histogram with %d peaks", len(peaks))
+	generateFullHist(results1, results2, "Гистограмма рамещения", "full_histogram.png")
+	appendImageToHTML("Гистограмма рамещения", "full_histogram.png")
+
+	err = openBrowser("results.html")
+	if err != nil {
+		log.Fatalf("Unable to open HTML file in browser: %v", err)
+	}
 }
 
 // Функция для загрузки данных из файла
@@ -245,14 +255,6 @@ func appendTableToHTML(title string, data [][]string) {
 	if err != nil {
 		log.Fatalf("Unable to write to HTML file: %v", err)
 	}
-
-	// Открытие HTML файла в браузере, если это первая запись
-	if title == "Исходная таблица данных" {
-		err = openBrowser("results.html")
-		if err != nil {
-			log.Fatalf("Unable to open HTML file in browser: %v", err)
-		}
-	}
 }
 
 // Функция для открытия файла в браузере
@@ -260,7 +262,7 @@ func openBrowser(url string) error {
 	var cmd string
 	var args []string
 
-	switch os := runtime.GOOS; os {
+	switch runtime.GOOS {
 	case "darwin":
 		cmd = "open"
 	case "windows":
@@ -473,10 +475,108 @@ func appendImageToHTML(title, filename string) {
 	if err != nil {
 		log.Fatalf("Unable to write to HTML file: %v", err)
 	}
+
+	log.Printf("Added image %s to HTML file with title %s", filename, title)
 }
 
 // Функция для удаления HTML-тегов
 func stripHTMLTags(input string) string {
 	re := regexp.MustCompile(`<.*?>`)
 	return re.ReplaceAllString(input, "")
+}
+
+func generateFullHist(results1, results2 [][]string, title, filename string) {
+	pointSet := make(map[string]int, len(points))
+	for _, val := range points {
+		pointSet[val] = 0
+	}
+
+	// Simulation to populate pointSet
+	for i := 0; i < 10001; i++ {
+		distribution := calculateDistribution(results1, results2, edges)
+		randomNumber := rand.Float64()
+		randomNetwork := generateRandomNetwork(peaks, distribution, randomNumber)
+		distMatrix := dijkstraAll(randomNetwork)
+		extRad, intRad := calculateExternalDistances(distMatrix), calculateInternalDistances(distMatrix)
+		extIntTable := calculateAndHighlightModelingResults(intRad, extRad, peaks)
+		ind, err := extractValueFromFirstColumn(extIntTable)
+		if err != nil {
+			log.Fatalf("Unable to extract value from table: %v", err)
+		}
+		pointSet[ind]++
+	}
+
+	// Find the maximum index
+	maxIndex := 0
+	for k := range pointSet {
+		i, err := strconv.Atoi(k)
+		if err != nil {
+			log.Printf("Invalid index %s: %v", k, err)
+			continue
+		}
+		if i > maxIndex {
+			maxIndex = i
+		}
+	}
+
+	// Create data for the histogram
+	barValues := make(plotter.Values, maxIndex)
+	for k, v := range pointSet {
+		i, err := strconv.Atoi(k)
+		if err != nil {
+			log.Printf("Invalid index %s: %v", k, err)
+			continue
+		}
+		if i-1 >= len(barValues) {
+			log.Printf("Index %d is out of bounds for barValues of length %d", i, len(barValues))
+			continue
+		}
+		barValues[i-1] = float64(v)
+	}
+
+	p := plot.New()
+	p.Title.Text = title
+	p.X.Label.Text = "Номер вершины"
+	p.Y.Label.Text = "Эффективность расположения"
+	p.Y.Min = 0 // Set the minimum Y axis value to 0
+
+	bars, err := plotter.NewBarChart(barValues, vg.Points(20))
+	if err != nil {
+		log.Fatalf("Unable to create bar chart: %v", err)
+	}
+
+	// Set X-axis labels
+	labels := make([]string, len(barValues))
+	for i := range labels {
+		labels[i] = strconv.Itoa(i + 1) // Correctly match labels with indices
+	}
+	p.NominalX(labels...)
+
+	p.Add(bars)
+
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, filename); err != nil {
+		log.Fatalf("Unable to save bar chart: %v", err)
+	}
+}
+
+func extractValueFromFirstColumn(matrix [][]string) (string, error) {
+	var value string
+
+	// Регулярное выражение для поиска конструкции <b>...</b>
+	re := regexp.MustCompile(`<b>([^<]+)</b>`)
+
+	for _, row := range matrix {
+		if len(row) == 0 || len(row) == 8 {
+			continue
+		}
+
+		// Проверяем первый столбец на наличие конструкции <b>...</b>
+		match := re.FindStringSubmatch(row[0])
+		if match != nil {
+			value = match[1]
+			break
+		}
+	}
+
+	return value, nil
 }
